@@ -51,6 +51,7 @@ struct Cell {
 struct Board{
     unique_ptr<Cursor> cursor;
     unique_ptr<Cell[]> cells;
+    unique_ptr<vector<int>> idxList;
     int redMineNum;
     int greenMineNum;
     int blueMineNum;
@@ -133,21 +134,16 @@ void printGameView(shared_ptr<Board> board) {
                     str += " "+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum, board->cells[i*CELL_NUM+j].numberColor)+" |";
                 }
             } else {
-                // if (board->cursor->x == i && board->cursor->y == j) {
-                //     str += " \x1b[4m \x1b[0m |";
-                // } else {
-                //     str += "   |";
-                // }
-                // for after clear
+                //use for gameover
                 switch(board->cells[i*CELL_NUM+j].mineColor) {
                     case Color::RED:
-                        str += " \x1b[31mX\x1b[39m |";
+                        str += " \x1b[4m\x1b[31mX\x1b[39m\x1b[0m |";
                         break;
                     case Color::GREEN:
-                        str += " \x1b[32mX\x1b[39m |";
+                        str += " \x1b[4m\x1b[32mX\x1b[39m\x1b[0m |";
                         break;
                     case Color::BLUE:
-                        str += " \x1b[34mX\x1b[39m |";
+                        str += " \x1b[4m\x1b[34mX\x1b[39m\x1b[0m |";
                         break;
                     default:
                         str += " X |";
@@ -167,7 +163,7 @@ void printGameView(shared_ptr<Board> board) {
 
 }
 
-unique_ptr<Cell[]> initCells() {
+void setCells(shared_ptr<Board> board) {
     unique_ptr<Cell[]> cells = make_unique<Cell[]>(CELL_NUM*CELL_NUM);
     
     //all cells initialize
@@ -180,13 +176,12 @@ unique_ptr<Cell[]> initCells() {
     //mine set
     random_device seed;
     mt19937 gen(seed());
-    vector<int> idxList;
+    vector<int> allIdxList;
     for (int i = 0; i < CELL_NUM*CELL_NUM; i++) {
-        idxList.push_back(i);
+        allIdxList.push_back(i);
     }
-    shuffle(idxList.begin(), idxList.end(), gen);
-    
-    vector<int> mineIdxList(idxList.begin(), idxList.begin()+MINE_NUM*4);
+    shuffle(allIdxList.begin(), allIdxList.end(), gen);
+    vector<int> mineIdxList(allIdxList.begin(), allIdxList.begin()+MINE_NUM*3);
 
     int color_cnt=0;
     for (Color color: {Color::RED, Color::GREEN, Color::BLUE}) {
@@ -195,6 +190,9 @@ unique_ptr<Cell[]> initCells() {
         }
         color_cnt++;
     }
+
+    board->idxList = make_unique<vector<int>>(std::move(mineIdxList));
+
 
     //number set
     for(int i=0; i<CELL_NUM*CELL_NUM; i++) {
@@ -247,11 +245,10 @@ unique_ptr<Cell[]> initCells() {
             }
             cells[i].mineNum = cnt;
             cells[i].numberColor = color;
-            //TODO:color
         }
     }
-
-    return cells;
+    board->cells = std::move(cells);
+    //return cells;
 }
 
 shared_ptr<Board> initBoard() {
@@ -259,11 +256,9 @@ shared_ptr<Board> initBoard() {
     cursor_ptr->x = 0;
     cursor_ptr->y = 0;
 
-    unique_ptr<Cell[]> cells = initCells();
-
     shared_ptr<Board> board_ptr = make_shared<Board>();
+    setCells(board_ptr);
     board_ptr->cursor = std::move(cursor_ptr);
-    board_ptr->cells = std::move(cells);
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
@@ -386,6 +381,10 @@ int openCell(shared_ptr<Board> board){
     if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged) {
         board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
         if (board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
+            //if gameover, all mines are opened
+            for(int idx: (*board->idxList)) {
+                board->cells[idx].isOpened = true;
+            }
             return 1;
         }
         if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineNum) {
@@ -426,8 +425,10 @@ int main(void) {
                 break;
             case ' ':
                 if (openCell(board)) {
-                    cout << "GAMEOVER!";
                     //GAMEOVER処理
+                    system("clear");
+                    printGameView(board);
+                    cout << "GAMEOVER!" << endl;
                     isLoop = false;
                     break;
                 }
