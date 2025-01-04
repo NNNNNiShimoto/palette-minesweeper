@@ -182,7 +182,15 @@ void setCells(shared_ptr<Board> board) {
     }
     shuffle(allIdxList.begin(), allIdxList.end(), gen);
     vector<int> mineIdxList(allIdxList.begin(), allIdxList.begin()+MINE_NUM*3);
-
+    // test for re-generate cells
+    // std::uniform_int_distribution<> dis(0, 1);
+    // vector<int> mineIdxList;
+    // if (dis(gen)) {
+    //     mineIdxList = {0,1,2,3,4,5};
+    // } else {
+    //     mineIdxList = {7,8,9,10,11,12};
+    // }
+    
     int color_cnt=0;
     for (Color color: {Color::RED, Color::GREEN, Color::BLUE}) {
         for (int i = 0+color_cnt*MINE_NUM; i < MINE_NUM*(color_cnt+1); i++) {
@@ -394,9 +402,13 @@ int openCell(shared_ptr<Board> board){
     return 0;
 }
 
+bool getIsGameclear(shared_ptr<Board> board) {
+    return true;
+}
+
 int main(void) {
     char key;
-    bool isLoop = true;
+    bool isLoop = true, isFirst = true;
     shared_ptr<Board> board = initBoard();
 
     enableRawMode();
@@ -425,13 +437,24 @@ int main(void) {
                 break;
             case ' ':
                 if (openCell(board)) {
-                    //GAMEOVER処理
-                    system("clear");
-                    printGameView(board);
-                    cout << "GAMEOVER!" << endl;
-                    isLoop = false;
-                    break;
+                    if (isFirst) {
+                        while(board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
+                            setCells(board);
+                        }
+                        openCell(board);
+                        isFirst = false;
+                        system("clear");
+                        break;
+                    } else {
+                        //GAMEOVER処理
+                        system("clear");
+                        printGameView(board);
+                        cout << "GAMEOVER!" << endl;
+                        isLoop = false;
+                        break;
+                    }
                 }
+                isFirst = false;
                 system("clear");
                 break;
             case 'i':
