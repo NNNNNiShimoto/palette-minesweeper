@@ -1,13 +1,15 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <random>
+#include <vector>
 #include <termios.h>
 #include <unistd.h>
 
 using namespace std;
 
 #define CELL_NUM 7
-#define MINE_NUM 4
+#define MINE_NUM 2
 
 enum class Color {
     NONE    = 0b000,
@@ -41,13 +43,17 @@ struct Cell {
     bool isOpened;
     int mineNum;
     Color numberColor;
-    //for mine
+
     bool isFlagged;
+    Color flagColor;
 };
 
 struct Board{
     unique_ptr<Cursor> cursor;
     unique_ptr<Cell[]> cells;
+    int redMineNum;
+    int greenMineNum;
+    int blueMineNum;
 };
 
 // set terminal to raw mode
@@ -74,17 +80,22 @@ string getPrintNumber(int n, Color color) {
         case Color::MAGENTA:
             return "\x1b[35m"+to_string(n)+"\x1b[39m";
         case Color::CYAN:
-            return "\x1b[36m"+to_string(n)+"\x1b[39m";
+            return "\x1b[96m"+to_string(n)+"\x1b[39m";
         default:
             return "\x1b[37m"+to_string(n)+"\x1b[39m";
     }
 }
 
-void printBoard(shared_ptr<Board> board) {
-    string str = "info\n\r";
+void printGameView(shared_ptr<Board> board) {
+    string str = "";
+    //print information
+    str += "\x1b[31mRED\x1b[39m: "  +to_string(board->redMineNum)  +", "
+        +  "\x1b[32mGREEN\x1b[39m: "+to_string(board->greenMineNum)+", "
+        +  "\x1b[34mBLUE\x1b[39m: " +to_string(board->blueMineNum) +"\n\r";
+
+    //print board
     for (int i = 0; i < CELL_NUM; i++) {
         str += "+";
-
         for (int j = 0; j < CELL_NUM; j++) {
             str += "---+";
         }
@@ -92,15 +103,38 @@ void printBoard(shared_ptr<Board> board) {
         str += "\n\r|";
 
         for (int j = 0; j < CELL_NUM; j++) {
-            if (board->cells[i*CELL_NUM+j].mineColor==Color::NONE) {
+            if (board->cells[i*CELL_NUM+j].isFlagged) {
+                str += " ";
+                if (board->cursor->x == i && board->cursor->y == j) str += "\x1b[4m";
+                switch(board->cells[i*CELL_NUM+j].flagColor) {
+                    case Color::RED:
+                        str += "\x1b[1m\x1b[31mP\x1b[39m\x1b[0m |";
+                        break;
+                    case Color::GREEN:
+                        str += "\x1b[1m\x1b[32mP\x1b[39m\x1b[0m |";
+                        break;
+                    case Color::BLUE:
+                        str += "\x1b[1m\x1b[34mP\x1b[39m\x1b[0m |";
+                        break;
+                    default:
+                        str += "\x1b[1mP\x1b[0m |";  
+                        break;                
+                }
+            } else if (!board->cells[i*CELL_NUM+j].isOpened) {
                 if (board->cursor->x == i && board->cursor->y == j) {
-                    str += " \x1b[7m"+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum, board->cells[i*CELL_NUM+j].numberColor)+"\x1b[0m |";
+                    str += " \x1b[4m.\x1b[0m |";
+                } else {
+                    str += " . |";
+                }
+            } else if (board->cells[i*CELL_NUM+j].mineColor==Color::NONE) {
+                if (board->cursor->x == i && board->cursor->y == j) {
+                    str += " \x1b[4m"+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum, board->cells[i*CELL_NUM+j].numberColor)+"\x1b[0m |";
                 } else {
                     str += " "+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum, board->cells[i*CELL_NUM+j].numberColor)+" |";
                 }
             } else {
                 // if (board->cursor->x == i && board->cursor->y == j) {
-                //     str += " \x1b[7m \x1b[0m |";
+                //     str += " \x1b[4m \x1b[0m |";
                 // } else {
                 //     str += "   |";
                 // }
@@ -125,7 +159,6 @@ void printBoard(shared_ptr<Board> board) {
     }
 
     str += "+";
-
     for (int j = 0; j < CELL_NUM; j++) {
         str += "---+";
     }
@@ -145,12 +178,20 @@ unique_ptr<Cell[]> initCells() {
     }
 
     //mine set
-    int l[] = {1, 3, 0, 6, 11, 33, 21, 23, 28, 40, 8 ,12};
+    random_device seed;
+    mt19937 gen(seed());
+    vector<int> idxList;
+    for (int i = 0; i < CELL_NUM*CELL_NUM; i++) {
+        idxList.push_back(i);
+    }
+    shuffle(idxList.begin(), idxList.end(), gen);
+    
+    vector<int> mineIdxList(idxList.begin(), idxList.begin()+MINE_NUM*4);
 
     int color_cnt=0;
     for (Color color: {Color::RED, Color::GREEN, Color::BLUE}) {
         for (int i = 0+color_cnt*MINE_NUM; i < MINE_NUM*(color_cnt+1); i++) {
-            cells[l[i]].mineColor = color;
+            cells[mineIdxList[i]].mineColor = color;
         }
         color_cnt++;
     }
@@ -223,19 +264,147 @@ shared_ptr<Board> initBoard() {
     shared_ptr<Board> board_ptr = make_shared<Board>();
     board_ptr->cursor = std::move(cursor_ptr);
     board_ptr->cells = std::move(cells);
+    board_ptr->redMineNum = MINE_NUM;
+    board_ptr->greenMineNum = MINE_NUM;
+    board_ptr->blueMineNum = MINE_NUM;
 
     return board_ptr;
 }
 
+void operateMineNum(shared_ptr<Board> board, Color color, bool isIncrease) {
+    if (isIncrease) {
+        switch(color) {
+            case Color::RED:
+                board->redMineNum++;
+                break;
+            case Color::GREEN:
+                board->greenMineNum++;
+                break;
+            case Color::BLUE:
+                board->blueMineNum++;
+                break;
+            default:
+                break;
+        }
+    } else {
+        switch(color) {
+            case Color::RED:
+                board->redMineNum--;
+                break;
+            case Color::GREEN:
+                board->greenMineNum--;
+                break;
+            case Color::BLUE:
+                board->blueMineNum--;
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void setFlag(shared_ptr<Board> board, Color color) {
+    if(board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged) {
+        if (color==board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor) {
+            board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged=false;
+            board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor=Color::NONE;
+            operateMineNum(board, color, true);
+        } else {
+            operateMineNum(board, board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor, true);
+            board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor=color;
+            operateMineNum(board, color, false);
+        }
+    } else {
+        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged=true;
+        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor=color;
+        operateMineNum(board, color, false);
+    }
+}
+
+void openCellRec(shared_ptr<Board> board, int x, int y){
+    if (y!=0) {
+        if(!board->cells[x*CELL_NUM+y-1].isFlagged //left
+        && !board->cells[x*CELL_NUM+y-1].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[x*CELL_NUM+y-1].isOpened = true;
+            if (!board->cells[x*CELL_NUM+y-1].mineNum) openCellRec(board, x, y-1); 
+        }
+        if (x!=0  //upper-left
+        && !board->cells[(x-1)*CELL_NUM+y-1].isFlagged 
+        && !board->cells[(x-1)*CELL_NUM+y-1].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[(x-1)*CELL_NUM+y-1].isOpened = true;
+            if (!board->cells[(x-1)*CELL_NUM+y-1].mineNum) openCellRec(board, x-1, y-1);
+        }
+        if (x!=CELL_NUM-1  //bottom-left
+        && !board->cells[(x+1)*CELL_NUM+y-1].isFlagged 
+        && !board->cells[(x+1)*CELL_NUM+y-1].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[(x+1)*CELL_NUM+y-1].isOpened = true;
+            if (!board->cells[(x+1)*CELL_NUM+y-1].mineNum) openCellRec(board, x+1, y-1);
+        }
+    }
+    if (y!=CELL_NUM-1) {
+        if(!board->cells[x*CELL_NUM+y+1].isFlagged //right
+        && !board->cells[x*CELL_NUM+y+1].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[x*CELL_NUM+y+1].isOpened = true;
+            if (!board->cells[x*CELL_NUM+y+1].mineNum) openCellRec(board, x, y+1); 
+        }
+        if (x!=0  //upper-right
+        && !board->cells[(x-1)*CELL_NUM+y+1].isFlagged 
+        && !board->cells[(x-1)*CELL_NUM+y+1].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[(x-1)*CELL_NUM+y+1].isOpened = true;
+            if (!board->cells[(x-1)*CELL_NUM+y+1].mineNum) openCellRec(board, x-1, y+1);
+        }
+        if (x!=CELL_NUM-1  //bottom-right
+        && !board->cells[(x+1)*CELL_NUM+y+1].isFlagged 
+        && !board->cells[(x+1)*CELL_NUM+y+1].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[(x+1)*CELL_NUM+y+1].isOpened = true;
+            if (!board->cells[(x+1)*CELL_NUM+y+1].mineNum) openCellRec(board, x+1, y+1);
+        }
+    }
+    if (x!=0
+        && !board->cells[(x-1)*CELL_NUM+y].isFlagged //top
+        && !board->cells[(x-1)*CELL_NUM+y].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[(x-1)*CELL_NUM+y].isOpened = true;
+            if (!board->cells[(x-1)*CELL_NUM+y].mineNum) openCellRec(board, x-1, y); 
+    }
+    if (x!=CELL_NUM-1
+        && !board->cells[(x+1)*CELL_NUM+y].isFlagged //bottom
+        && !board->cells[(x+1)*CELL_NUM+y].isOpened 
+        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
+            board->cells[(x+1)*CELL_NUM+y].isOpened = true;
+            if (!board->cells[(x+1)*CELL_NUM+y].mineNum) openCellRec(board, x+1, y); 
+    }
+}
+
+int openCell(shared_ptr<Board> board){
+    if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged) {
+        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
+        if (board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
+            return 1;
+        }
+        if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineNum) {
+            openCellRec(board, board->cursor->x, board->cursor->y);
+        }
+    }
+    return 0;
+}
+
 int main(void) {
     char key;
+    bool isLoop = true;
     shared_ptr<Board> board = initBoard();
 
     enableRawMode();
     system("clear");
 
-    while(1) {
-        printBoard(board);
+    while(isLoop) {
+        printGameView(board);
         key = getchar();
         if (key == 'c') break;
         switch(key){
@@ -256,9 +425,26 @@ int main(void) {
                 system("clear");
                 break;
             case ' ':
-                //open cell
+                if (openCell(board)) {
+                    cout << "GAMEOVER!";
+                    //GAMEOVER処理
+                    isLoop = false;
+                    break;
+                }
                 system("clear");
                 break;
+            case 'i':
+                setFlag(board, Color::RED);
+                system("clear");
+                break;
+            case 'o':
+                setFlag(board, Color::GREEN);
+                system("clear");
+                break;
+            case 'p':
+                setFlag(board, Color::BLUE);
+                system("clear");
+                break;       
         }
     }
 
