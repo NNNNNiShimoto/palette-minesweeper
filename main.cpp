@@ -259,6 +259,7 @@ void setCells(shared_ptr<Board> board) {
         }
     }
     board->cells = std::move(cells);
+    board->restCellNum = CELL_NUM*CELL_NUM-MINE_NUM*3;
     //return cells;
 }
 
@@ -273,7 +274,6 @@ shared_ptr<Board> initBoard() {
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
-    board_ptr->restCellNum = CELL_NUM*CELL_NUM-MINE_NUM*3;
 
     return board_ptr;
 }
