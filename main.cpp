@@ -8,8 +8,8 @@
 
 using namespace std;
 
-#define CELL_NUM 7
-#define MINE_NUM 2
+#define CELL_NUM 10
+#define MINE_NUM 4
 
 enum class Color {
     NONE    = 0b000,
@@ -385,16 +385,15 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
     }
 }
 
+//open cells using openCellRec, 
+//ret 0:notmine, 1:mine
 int openCell(shared_ptr<Board> board){
     if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged) {
         board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
         if (board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
-            //if gameover, all mines are opened
-            for(int idx: (*board->idxList)) {
-                board->cells[idx].isOpened = true;
-            }
             return 1;
         }
+        //if opened cell was blanc, open recursively
         if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineNum) {
             openCellRec(board, board->cursor->x, board->cursor->y);
         }
@@ -403,7 +402,34 @@ int openCell(shared_ptr<Board> board){
 }
 
 bool getIsGameclear(shared_ptr<Board> board) {
-    return true;
+    bool isClear = true;
+    for(int idx : *board->idxList) {
+        if (!isClear) break;
+        isClear &= board->cells[idx].flagColor == board->cells[idx].mineColor;
+    }
+    return isClear;
+}
+
+void gameOver(shared_ptr<Board> board) {
+    for(int idx: (*board->idxList)) {
+        if (board->cells[idx].isFlagged) {
+            board->cells[idx].flagColor = board->cells[idx].mineColor;
+        } else {
+            board->cells[idx].isOpened = true;
+        }
+    }
+    system("clear");
+    printGameView(board);
+    cout << "GAMEOVER!" << endl;
+}
+
+void gameClear(shared_ptr<Board> board) {
+    for (int i=0; i<CELL_NUM*CELL_NUM; i++) {
+        board->cells[i].isOpened = true;
+    }
+    system("clear");
+    printGameView(board);
+    cout << "CONGRATULATIONS!" << endl;
 }
 
 int main(void) {
@@ -412,28 +438,24 @@ int main(void) {
     shared_ptr<Board> board = initBoard();
 
     enableRawMode();
-    system("clear");
 
     while(isLoop) {
+        system("clear");
         printGameView(board);
         key = getchar();
         if (key == 'c') break;
         switch(key){
             case 'w':
                 board->cursor->x = (board->cursor->x-1+CELL_NUM)%CELL_NUM;
-                system("clear");
                 break;
             case 's':
                 board->cursor->x = (board->cursor->x+1)%CELL_NUM;
-                system("clear");
                 break;
             case 'a':
                 board->cursor->y = (board->cursor->y-1+CELL_NUM)%CELL_NUM;
-                system("clear");
                 break;
             case 'd':
                 board->cursor->y = (board->cursor->y+1)%CELL_NUM;
-                system("clear");
                 break;
             case ' ':
                 if (openCell(board)) {
@@ -443,31 +465,38 @@ int main(void) {
                         }
                         openCell(board);
                         isFirst = false;
-                        system("clear");
                         break;
                     } else {
-                        //GAMEOVER処理
-                        system("clear");
-                        printGameView(board);
-                        cout << "GAMEOVER!" << endl;
+                        gameOver(board);
                         isLoop = false;
                         break;
                     }
                 }
                 isFirst = false;
-                system("clear");
                 break;
             case 'i':
                 setFlag(board, Color::RED);
-                system("clear");
+                if (getIsGameclear(board)) {
+                    gameClear(board);
+                    isLoop = false;
+                    break;
+                }
                 break;
             case 'o':
                 setFlag(board, Color::GREEN);
-                system("clear");
+                if (getIsGameclear(board)) {
+                    gameClear(board);
+                    isLoop = false;
+                    break;
+                }
                 break;
             case 'p':
                 setFlag(board, Color::BLUE);
-                system("clear");
+                if (getIsGameclear(board)) {
+                    gameClear(board);
+                    isLoop = false;
+                    break;
+                }
                 break;       
         }
     }
