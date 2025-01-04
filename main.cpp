@@ -55,6 +55,7 @@ struct Board{
     int redMineNum;
     int greenMineNum;
     int blueMineNum;
+    int restCellNum;
 };
 
 // set terminal to raw mode
@@ -92,7 +93,9 @@ void printGameView(shared_ptr<Board> board) {
     //print information
     str += "\x1b[31mRED\x1b[39m: "  +to_string(board->redMineNum)  +", "
         +  "\x1b[32mGREEN\x1b[39m: "+to_string(board->greenMineNum)+", "
-        +  "\x1b[34mBLUE\x1b[39m: " +to_string(board->blueMineNum) +"\n\r";
+        +  "\x1b[34mBLUE\x1b[39m: " +to_string(board->blueMineNum) +", "
+        +  "REST: " +to_string(board->restCellNum) +"\n\r";
+
 
     //print board
     for (int i = 0; i < CELL_NUM; i++) {
@@ -270,6 +273,7 @@ shared_ptr<Board> initBoard() {
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
+    board_ptr->restCellNum = CELL_NUM*CELL_NUM-MINE_NUM*3;
 
     return board_ptr;
 }
@@ -318,9 +322,11 @@ void setFlag(shared_ptr<Board> board, Color color) {
             operateMineNum(board, color, false);
         }
     } else {
-        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged=true;
-        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor=color;
-        operateMineNum(board, color, false);
+        if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened) {
+            board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged=true;
+            board->cells[board->cursor->x*CELL_NUM+board->cursor->y].flagColor=color;
+            operateMineNum(board, color, false);
+        }
     }
 }
 
@@ -330,6 +336,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[x*CELL_NUM+y-1].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[x*CELL_NUM+y-1].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[x*CELL_NUM+y-1].mineNum) openCellRec(board, x, y-1); 
         }
         if (x!=0  //upper-left
@@ -337,6 +344,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[(x-1)*CELL_NUM+y-1].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[(x-1)*CELL_NUM+y-1].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[(x-1)*CELL_NUM+y-1].mineNum) openCellRec(board, x-1, y-1);
         }
         if (x!=CELL_NUM-1  //bottom-left
@@ -344,6 +352,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[(x+1)*CELL_NUM+y-1].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[(x+1)*CELL_NUM+y-1].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[(x+1)*CELL_NUM+y-1].mineNum) openCellRec(board, x+1, y-1);
         }
     }
@@ -352,6 +361,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[x*CELL_NUM+y+1].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[x*CELL_NUM+y+1].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[x*CELL_NUM+y+1].mineNum) openCellRec(board, x, y+1); 
         }
         if (x!=0  //upper-right
@@ -359,6 +369,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[(x-1)*CELL_NUM+y+1].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[(x-1)*CELL_NUM+y+1].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[(x-1)*CELL_NUM+y+1].mineNum) openCellRec(board, x-1, y+1);
         }
         if (x!=CELL_NUM-1  //bottom-right
@@ -366,6 +377,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[(x+1)*CELL_NUM+y+1].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[(x+1)*CELL_NUM+y+1].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[(x+1)*CELL_NUM+y+1].mineNum) openCellRec(board, x+1, y+1);
         }
     }
@@ -374,6 +386,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[(x-1)*CELL_NUM+y].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[(x-1)*CELL_NUM+y].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[(x-1)*CELL_NUM+y].mineNum) openCellRec(board, x-1, y); 
     }
     if (x!=CELL_NUM-1
@@ -381,6 +394,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
         && !board->cells[(x+1)*CELL_NUM+y].isOpened 
         &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
             board->cells[(x+1)*CELL_NUM+y].isOpened = true;
+            board->restCellNum--;
             if (!board->cells[(x+1)*CELL_NUM+y].mineNum) openCellRec(board, x+1, y); 
     }
 }
@@ -390,6 +404,7 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
 int openCell(shared_ptr<Board> board){
     if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged) {
         board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
+        board->restCellNum--;
         if (board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
             return 1;
         }
@@ -433,8 +448,8 @@ void gameClear(shared_ptr<Board> board) {
 }
 
 int main(void) {
-    char key;
-    bool isLoop = true, isFirst = true;
+    char key, lastchar;
+    bool isLoop = true, isFirst = true, isCancel = false;
     shared_ptr<Board> board = initBoard();
 
     enableRawMode();
@@ -442,8 +457,17 @@ int main(void) {
     while(isLoop) {
         system("clear");
         printGameView(board);
+        if (isCancel) cout << "Do you want to cancel this game? (y/n)" << endl;
         key = getchar();
-        if (key == 'c') break;
+        if (key=='c') {
+            isCancel = true;
+            continue;
+        }
+        if (isCancel){
+            if (key=='y') break;
+            else if (key=='n') isCancel = false;
+            else continue;
+        } 
         switch(key){
             case 'w':
                 board->cursor->x = (board->cursor->x-1+CELL_NUM)%CELL_NUM;
@@ -497,7 +521,7 @@ int main(void) {
                     isLoop = false;
                     break;
                 }
-                break;       
+                break;  
         }
     }
 
