@@ -9,9 +9,26 @@ using namespace std;
 #define CELL_NUM 7
 #define MINE_NUM 4
 
-typedef enum {
-    MINE_NONE, MINE_RED, MINE_GREEN, MINE_BLUE
-} MineType;
+enum class Color {
+    NONE    = 0b000,
+    RED     = 0b100,
+    GREEN   = 0b010,
+    BLUE    = 0b001,
+    YELLOW  = 0b110,
+    MAGENTA = 0b101,
+    CYAN    = 0b011,
+    WHITE   = 0b111
+};
+
+inline Color operator|(Color a, Color b) {
+    using T = std::underlying_type_t<Color>;
+    return static_cast<Color>(static_cast<T>(a) | static_cast<T>(b));
+}
+
+inline Color& operator|=(Color& a, Color b) {
+    a = a | b;
+    return a;
+}
 
 struct Cursor {
     int x;
@@ -19,11 +36,11 @@ struct Cursor {
 };
 
 struct Cell {
-    MineType mineType;
+    Color mineColor;//R,G,B or none only
     //for not-mine
     bool isOpened;
     int mineNum;
-    int mineColor;
+    Color numberColor;
     //for mine
     bool isFlagged;
 };
@@ -43,14 +60,28 @@ void enableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminal_config);
 }
 
-string getPrintNumber(int n) {
-    //"\x1b[7m-\x1b[0m";
+string getPrintNumber(int n, Color color) {
     if (n==0) return " ";
-    else return to_string(n);
+    switch(color) {
+        case Color::RED:
+            return "\x1b[31m"+to_string(n)+"\x1b[39m";
+        case Color::GREEN:
+            return "\x1b[32m"+to_string(n)+"\x1b[39m";
+        case Color::YELLOW:
+            return "\x1b[33m"+to_string(n)+"\x1b[39m";
+        case Color::BLUE:
+            return "\x1b[34m"+to_string(n)+"\x1b[39m";
+        case Color::MAGENTA:
+            return "\x1b[35m"+to_string(n)+"\x1b[39m";
+        case Color::CYAN:
+            return "\x1b[36m"+to_string(n)+"\x1b[39m";
+        default:
+            return "\x1b[37m"+to_string(n)+"\x1b[39m";
+    }
 }
 
 void printBoard(shared_ptr<Board> board) {
-    string str = "";
+    string str = "info\n\r";
     for (int i = 0; i < CELL_NUM; i++) {
         str += "+";
 
@@ -61,17 +92,35 @@ void printBoard(shared_ptr<Board> board) {
         str += "\n\r|";
 
         for (int j = 0; j < CELL_NUM; j++) {
-            if (board->cells[i*CELL_NUM+j].mineType==MINE_NONE) {
+            if (board->cells[i*CELL_NUM+j].mineColor==Color::NONE) {
                 if (board->cursor->x == i && board->cursor->y == j) {
-                    str += " \x1b[7m"+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum)+"\x1b[0m |";
+                    str += " \x1b[7m"+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum, board->cells[i*CELL_NUM+j].numberColor)+"\x1b[0m |";
                 } else {
-                    str += " "+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum)+" |";
+                    str += " "+getPrintNumber(board->cells[i*CELL_NUM+j].mineNum, board->cells[i*CELL_NUM+j].numberColor)+" |";
                 }
             } else {
-                str += " X |";
+                // if (board->cursor->x == i && board->cursor->y == j) {
+                //     str += " \x1b[7m \x1b[0m |";
+                // } else {
+                //     str += "   |";
+                // }
+                // for after clear
+                switch(board->cells[i*CELL_NUM+j].mineColor) {
+                    case Color::RED:
+                        str += " \x1b[31mX\x1b[39m |";
+                        break;
+                    case Color::GREEN:
+                        str += " \x1b[32mX\x1b[39m |";
+                        break;
+                    case Color::BLUE:
+                        str += " \x1b[34mX\x1b[39m |";
+                        break;
+                    default:
+                        str += " X |";
+                        break;
+                }
             }
         }
-
         str += "\n\r";
     }
 
@@ -90,32 +139,73 @@ unique_ptr<Cell[]> initCells() {
     
     //all cells initialize
     for(int i=0; i<CELL_NUM*CELL_NUM; i++) {
-        cells[i].mineType = MINE_NONE;
+        cells[i].mineColor = Color::NONE;
         cells[i].isOpened = false;
         cells[i].isFlagged = false;
     }
-    int l[] = {6, 42, 0, 48};
 
-    for(int i = 0; i<MINE_NUM; i++) {
-        cells[l[i]].mineType = MINE_RED;
+    //mine set
+    int l[] = {1, 3, 0, 6, 11, 33, 21, 23, 28, 40, 8 ,12};
+
+    int color_cnt=0;
+    for (Color color: {Color::RED, Color::GREEN, Color::BLUE}) {
+        for (int i = 0+color_cnt*MINE_NUM; i < MINE_NUM*(color_cnt+1); i++) {
+            cells[l[i]].mineColor = color;
+        }
+        color_cnt++;
     }
 
+    //number set
     for(int i=0; i<CELL_NUM*CELL_NUM; i++) {
-        if (cells[i].mineType == MINE_NONE) {
+        if (cells[i].mineColor == Color::NONE) {
             int cnt = 0;
+            Color color = Color::NONE;
             if (i%CELL_NUM!=0) {
-                if (cells[i-1].mineType!=MINE_NONE) cnt++;
-                if (i/CELL_NUM!=0          && cells[i-CELL_NUM-1].mineType!=MINE_NONE) cnt++;
-                if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM-1].mineType!=MINE_NONE) cnt++;
+                //is left cell exist?
+                if (cells[i-1].mineColor!=Color::NONE) {
+                    cnt++;
+                    color |= cells[i-1].mineColor;
+                }
+                //is top-left cell exist?
+                if (i/CELL_NUM!=0 && cells[i-CELL_NUM-1].mineColor!=Color::NONE) {
+                    cnt++;
+                    color |= cells[i-CELL_NUM-1].mineColor;
+                }
+                //is bottom-left cell exist?
+                if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM-1].mineColor!=Color::NONE) {
+                    cnt++;
+                    color |= cells[i+CELL_NUM-1].mineColor;
+                }
             }
             if (i%CELL_NUM!=CELL_NUM-1) {
-                if (cells[i+1].mineType!=MINE_NONE) cnt++;
-                if (i/CELL_NUM!=0          && cells[i-CELL_NUM+1].mineType!=MINE_NONE) cnt++;
-                if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM+1].mineType!=MINE_NONE) cnt++;
+                //is right cell exist?
+                if (cells[i+1].mineColor!=Color::NONE) {
+                    cnt++;
+                    color |= cells[i+1].mineColor;
+                }
+                //is top-right cell exist?
+                if (i/CELL_NUM!=0 && cells[i-CELL_NUM+1].mineColor!=Color::NONE)  {
+                    cnt++;
+                    color |= cells[i-CELL_NUM+1].mineColor;
+                }
+                //is bottom-right cell exist?
+                if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM+1].mineColor!=Color::NONE)  {
+                    cnt++;
+                    color |= cells[i+CELL_NUM+1].mineColor;
+                }
             }
-            if (i/CELL_NUM!=0          && cells[i-CELL_NUM].mineType!=MINE_NONE) cnt++;
-            if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM].mineType!=MINE_NONE) cnt++;
+            //is top cell exist?
+            if (i/CELL_NUM!=0 && cells[i-CELL_NUM].mineColor!=Color::NONE) {
+                cnt++;
+                color |= cells[i-CELL_NUM].mineColor;
+            }
+            //is bottom cell exist?
+            if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM].mineColor!=Color::NONE) {
+                cnt++;
+                color |= cells[i+CELL_NUM].mineColor;
+            }
             cells[i].mineNum = cnt;
+            cells[i].numberColor = color;
             //TODO:color
         }
     }
@@ -163,6 +253,10 @@ int main(void) {
                 break;
             case 'd':
                 board->cursor->y = (board->cursor->y+1)%CELL_NUM;
+                system("clear");
+                break;
+            case ' ':
+                //open cell
                 system("clear");
                 break;
         }
