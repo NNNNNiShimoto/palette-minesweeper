@@ -8,8 +8,8 @@
 
 using namespace std;
 
-#define CELL_NUM 10
-#define MINE_NUM 4
+#define CELL_NUM 7
+#define MINE_NUM 2
 
 enum class Color {
     NONE    = 0b000,
@@ -402,12 +402,14 @@ void openCellRec(shared_ptr<Board> board, int x, int y){
 //open cells using openCellRec, 
 //ret 0:notmine, 1:mine
 int openCell(shared_ptr<Board> board){
-    if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged) {
-        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
-        board->restCellNum--;
+    if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlagged
+      &&!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened) {
         if (board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
             return 1;
         }
+
+        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
+        board->restCellNum--;
         //if opened cell was blanc, open recursively
         if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineNum) {
             openCellRec(board, board->cursor->x, board->cursor->y);
@@ -422,7 +424,7 @@ bool getIsGameclear(shared_ptr<Board> board) {
         if (!isClear) break;
         isClear &= board->cells[idx].flagColor == board->cells[idx].mineColor;
     }
-    return isClear;
+    return isClear && board->restCellNum<=0;
 }
 
 void gameOver(shared_ptr<Board> board) {
@@ -497,6 +499,11 @@ int main(void) {
                     }
                 }
                 isFirst = false;
+                if (getIsGameclear(board)) {
+                    gameClear(board);
+                    isLoop = false;
+                    break;
+                }
                 break;
             case 'i':
                 setFlag(board, Color::RED);
