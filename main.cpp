@@ -437,7 +437,7 @@ void gameOver(shared_ptr<Board> board) {
     }
     system("clear");
     printGameView(board);
-    cout << "GAMEOVER!" << endl;
+    cout << "GAMEOVER!\n\r";
 }
 
 void gameClear(shared_ptr<Board> board) {
@@ -446,11 +446,11 @@ void gameClear(shared_ptr<Board> board) {
     }
     system("clear");
     printGameView(board);
-    cout << "CONGRATULATIONS!" << endl;
+    cout << "CONGRATULATIONS!\n\r";
 }
 
 int main(void) {
-    char key, lastchar;
+    char key;
     bool isLoop = true, isFirst = true, isCancel = false;
     shared_ptr<Board> board = initBoard();
 
@@ -459,7 +459,7 @@ int main(void) {
     while(isLoop) {
         system("clear");
         printGameView(board);
-        if (isCancel) cout << "Do you want to cancel this game? (y/n)" << endl;
+        if (isCancel) cout << "Do you want to cancel this game? (y/n)\n\r";
         key = getchar();
         if (key=='c') {
             isCancel = true;
