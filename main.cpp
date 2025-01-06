@@ -6,6 +6,9 @@
 #include <termios.h>
 #include <unistd.h>
 #include <sstream>
+
+#include "colortext.h"
+
 using namespace std;
 
 #define CELL_NUM 10
@@ -58,86 +61,6 @@ struct Board{
     int remainCellNum;
 };
 
-template <typename T>
-string redText(const T& text) {
-    return "\x1b[31m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string redText<int>(const int& text) {
-    return "\x1b[31m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string greenText(const T& text) {
-    return "\x1b[32m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string greenText<int>(const int& text) {
-    return "\x1b[32m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string yellowText(const T& text) {
-    return "\x1b[33m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string yellowText<int>(const int& text) {
-    return "\x1b[33m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string blueText(const T& text) {
-    return "\x1b[34m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string blueText<int>(const int& text) {
-    return "\x1b[34m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string magentaText(const T& text) {
-    return "\x1b[35m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string magentaText<int>(const int& text) {
-    return "\x1b[35m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string cyanText(const T& text) {
-    return "\x1b[96m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string cyanText<int>(const int& text) {
-    return "\x1b[96m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string whiteText(const T& text) {
-    return "\x1b[37m" + string(text) + "\x1b[39m";
-}
-
-template <>
-string whiteText<int>(const int& text) {
-    return "\x1b[37m" + to_string(text) + "\x1b[39m";
-}
-
-template <typename T>
-string boldText(const T& text) {
-    return "\x1b[1m" + string(text) + "\x1b[0m";
-}
-
-template <>
-string boldText<int>(const int& text) {
-    return "\x1b[1m" + to_string(text) + "\x1b[0m";
-}
-
 //recover terminal 
 void disableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
@@ -159,12 +82,12 @@ void enableRawMode() {
 }
 
 string getInfoString(shared_ptr<Board> board) {
-    stringstream ss;
-    ss << redText("RED")     << ": " << to_string(board->redMineNum)   << ", ";
-    ss << greenText("GREEN") << ": " << to_string(board->greenMineNum) << ", ";
-    ss << blueText("BLUE")   << ": " << to_string(board->blueMineNum)  << ", ";
-    ss << "REMAINING MINES: " << to_string(board->remainCellNum) << "\n\r";
-    return ss.str();
+    ostringstream oss;
+    oss << redText("RED")     << ": " << to_string(board->redMineNum)   << ", ";
+    oss << greenText("GREEN") << ": " << to_string(board->greenMineNum) << ", ";
+    oss << blueText("BLUE")   << ": " << to_string(board->blueMineNum)  << ", ";
+    oss << "REMAINING MINES: " << to_string(board->remainCellNum) << "\n\r";
+    return oss.str();
 }
 
 string getNumberString(int n, Color color) {
