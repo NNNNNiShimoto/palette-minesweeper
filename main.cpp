@@ -11,6 +11,8 @@ using namespace std;
 #define CELL_NUM 10
 #define MINE_NUM 5
 
+termios original;
+
 enum class Color {
     NONE    = 0b000,
     RED     = 0b100,
@@ -56,10 +58,20 @@ struct Board{
     int remainCellNum;
 };
 
+//recover terminal 
+void disableRawMode() {
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
+}
+
 // set terminal to raw mode
 void enableRawMode() {
     termios terminal_config;
     tcgetattr(STDIN_FILENO, &terminal_config);
+    atexit(disableRawMode);
+
+    //save orinigal config for disable raw mode
+    original = terminal_config;
+    
     cfmakeraw(&terminal_config);
     terminal_config.c_cc[VMIN] = 1;
     terminal_config.c_cc[VTIME] = 0;
