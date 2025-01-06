@@ -1,4 +1,4 @@
-# pallet-minesweeper
+# pallete-minesweeper
 
 ## Overview
 <div style="text-align: center">
