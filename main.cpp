@@ -5,7 +5,7 @@
 #include <vector>
 #include <termios.h>
 #include <unistd.h>
-
+#include <sstream>
 using namespace std;
 
 #define CELL_NUM 10
@@ -58,6 +58,86 @@ struct Board{
     int remainCellNum;
 };
 
+template <typename T>
+string redText(const T& text) {
+    return "\x1b[31m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string redText<int>(const int& text) {
+    return "\x1b[31m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string greenText(const T& text) {
+    return "\x1b[32m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string greenText<int>(const int& text) {
+    return "\x1b[32m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string yellowText(const T& text) {
+    return "\x1b[33m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string yellowText<int>(const int& text) {
+    return "\x1b[33m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string blueText(const T& text) {
+    return "\x1b[34m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string blueText<int>(const int& text) {
+    return "\x1b[34m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string magentaText(const T& text) {
+    return "\x1b[35m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string magentaText<int>(const int& text) {
+    return "\x1b[35m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string cyanText(const T& text) {
+    return "\x1b[96m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string cyanText<int>(const int& text) {
+    return "\x1b[96m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string whiteText(const T& text) {
+    return "\x1b[37m" + string(text) + "\x1b[39m";
+}
+
+template <>
+string whiteText<int>(const int& text) {
+    return "\x1b[37m" + to_string(text) + "\x1b[39m";
+}
+
+template <typename T>
+string boldText(const T& text) {
+    return "\x1b[1m" + string(text) + "\x1b[0m";
+}
+
+template <>
+string boldText<int>(const int& text) {
+    return "\x1b[1m" + to_string(text) + "\x1b[0m";
+}
+
 //recover terminal 
 void disableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
@@ -78,38 +158,43 @@ void enableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminal_config);
 }
 
-string getPrintNumber(int n, Color color) {
+string getInfoString(shared_ptr<Board> board) {
+    stringstream ss;
+    ss << redText("RED")     << ": " << to_string(board->redMineNum)   << ", ";
+    ss << greenText("GREEN") << ": " << to_string(board->greenMineNum) << ", ";
+    ss << blueText("BLUE")   << ": " << to_string(board->blueMineNum)  << ", ";
+    ss << "REMAINING MINES: " << to_string(board->remainCellNum) << "\n\r";
+    return ss.str();
+}
+
+string getNumberString(int n, Color color) {
     if (n==0) return " ";
     switch(color) {
         case Color::RED:
-            return "\x1b[31m"+to_string(n)+"\x1b[39m";
+            return redText(n);
         case Color::GREEN:
-            return "\x1b[32m"+to_string(n)+"\x1b[39m";
+            return greenText(n);
         case Color::YELLOW:
-            return "\x1b[33m"+to_string(n)+"\x1b[39m";
+            return yellowText(n);
         case Color::BLUE:
-            return "\x1b[34m"+to_string(n)+"\x1b[39m";
+            return blueText(n);
         case Color::MAGENTA:
-            return "\x1b[35m"+to_string(n)+"\x1b[39m";
+            return magentaText(n);
         case Color::CYAN:
-            return "\x1b[96m"+to_string(n)+"\x1b[39m";
+            return cyanText(n);
         default:
-            return "\x1b[37m"+to_string(n)+"\x1b[39m";
+            return whiteText(n);
     }
 }
 
 void printGameView(shared_ptr<Board> board) {
     string str = "";
     //print information
-    str += "\x1b[31mRED\x1b[39m: "  +to_string(board->redMineNum)  +", "
-        +  "\x1b[32mGREEN\x1b[39m: "+to_string(board->greenMineNum)+", "
-        +  "\x1b[34mBLUE\x1b[39m: " +to_string(board->blueMineNum) +", "
-        +  "REMAINING MINES: " +to_string(board->remainCellNum) +"\n\r";
-
+    str += getInfoString(board);
 
     //print board
     for (int i = 0; i < CELL_NUM; i++) {
-        str += "+";
+        str += boldText("+");
         for (int j = 0; j < CELL_NUM; j++) {
             str += "---+";
         }
@@ -142,9 +227,9 @@ void printGameView(shared_ptr<Board> board) {
                 }
             } else if (board->cells[i*CELL_NUM+j].mineColor==Color::NONE) {
                 if (board->cursor->x == i && board->cursor->y == j) {
-                    str += " \x1b[4m"+getPrintNumber(board->cells[i*CELL_NUM+j].mineNumber, board->cells[i*CELL_NUM+j].mineNumberColor)+"\x1b[0m |";
+                    str += " \x1b[4m"+getNumberString(board->cells[i*CELL_NUM+j].mineNumber, board->cells[i*CELL_NUM+j].mineNumberColor)+"\x1b[0m |";
                 } else {
-                    str += " "+getPrintNumber(board->cells[i*CELL_NUM+j].mineNumber, board->cells[i*CELL_NUM+j].mineNumberColor)+" |";
+                    str += " "+getNumberString(board->cells[i*CELL_NUM+j].mineNumber, board->cells[i*CELL_NUM+j].mineNumberColor)+" |";
                 }
             } else {
                 //use for gameover
