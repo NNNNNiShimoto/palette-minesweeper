@@ -117,6 +117,13 @@ std::string boldText(const T& text) {
     return oss.str();
 }
 
+template <typename T>
+std::string underlineText(const T& text) {
+    std::ostringstream oss;
+    oss << "\x1b[4m" << std::string(text) << "\x1b[0m";
+    return oss.str();
+}
+
 // template <>
 // std::string boldText<int>(const int& text) {
 //     return "\x1b[1m" + std::to_string(text) + "\x1b[0m";

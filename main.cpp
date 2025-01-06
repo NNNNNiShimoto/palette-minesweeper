@@ -90,9 +90,10 @@ string getInfoString(shared_ptr<Board> board) {
     return oss.str();
 }
 
-string getNumberString(int n, Color color) {
-    if (n==0) return " ";
-    switch(color) {
+string getNumberString(Cell cell) {
+    if (cell.mineNumber==0) return " ";
+    int n = cell.mineNumber;
+    switch(cell.mineNumberColor) {
         case Color::RED:
             return redText(n);
         case Color::GREEN:
@@ -110,77 +111,67 @@ string getNumberString(int n, Color color) {
     }
 }
 
+string getCellString(Cell cell) {
+    if (cell.isFlag) {        
+        switch(cell.flagColor) {
+            case Color::RED:
+                return boldText(redText("P"));
+            case Color::GREEN:
+                return boldText(greenText("P"));
+            case Color::BLUE:
+                return boldText(blueText("P"));
+            default:
+                return "E";
+        }
+    } else if (!cell.isOpened) {
+        return ".";
+    } else if (cell.mineColor==Color::NONE) {
+        return getNumberString(cell);
+    } else {
+        switch(cell.mineColor) {
+            case Color::RED:
+                return underlineText(redText("X"));
+            case Color::GREEN:
+                return underlineText(greenText("X"));
+            case Color::BLUE:
+                return underlineText(blueText("X"));
+            default:
+                return "E";
+        }
+    }
+}
+
 void printGameView(shared_ptr<Board> board) {
-    string str = "";
+    ostringstream oss;
+
     //print information
-    str += getInfoString(board);
+    oss << getInfoString(board);
 
     //print board
     for (int i = 0; i < CELL_NUM; i++) {
-        str += boldText("+");
+        oss << "+";
         for (int j = 0; j < CELL_NUM; j++) {
-            str += "---+";
+            oss << "---+";
         }
 
-        str += "\n\r|";
+        oss << "\n\r|";
 
         for (int j = 0; j < CELL_NUM; j++) {
-            if (board->cells[i*CELL_NUM+j].isFlag) {
-                str += " ";
-                if (board->cursor->x == i && board->cursor->y == j) str += "\x1b[4m";
-                switch(board->cells[i*CELL_NUM+j].flagColor) {
-                    case Color::RED:
-                        str += "\x1b[1m\x1b[31mP\x1b[39m\x1b[0m |";
-                        break;
-                    case Color::GREEN:
-                        str += "\x1b[1m\x1b[32mP\x1b[39m\x1b[0m |";
-                        break;
-                    case Color::BLUE:
-                        str += "\x1b[1m\x1b[34mP\x1b[39m\x1b[0m |";
-                        break;
-                    default:
-                        str += "\x1b[1mP\x1b[0m |";  
-                        break;                
-                }
-            } else if (!board->cells[i*CELL_NUM+j].isOpened) {
-                if (board->cursor->x == i && board->cursor->y == j) {
-                    str += " \x1b[4m.\x1b[0m |";
-                } else {
-                    str += " . |";
-                }
-            } else if (board->cells[i*CELL_NUM+j].mineColor==Color::NONE) {
-                if (board->cursor->x == i && board->cursor->y == j) {
-                    str += " \x1b[4m"+getNumberString(board->cells[i*CELL_NUM+j].mineNumber, board->cells[i*CELL_NUM+j].mineNumberColor)+"\x1b[0m |";
-                } else {
-                    str += " "+getNumberString(board->cells[i*CELL_NUM+j].mineNumber, board->cells[i*CELL_NUM+j].mineNumberColor)+" |";
-                }
+            if (board->cursor->x == i && board->cursor->y == j) {
+                oss << " " << underlineText(getCellString(board->cells[i*CELL_NUM+j])) << " |";
             } else {
-                //use for gameover
-                switch(board->cells[i*CELL_NUM+j].mineColor) {
-                    case Color::RED:
-                        str += " \x1b[4m\x1b[31mX\x1b[39m\x1b[0m |";
-                        break;
-                    case Color::GREEN:
-                        str += " \x1b[4m\x1b[32mX\x1b[39m\x1b[0m |";
-                        break;
-                    case Color::BLUE:
-                        str += " \x1b[4m\x1b[34mX\x1b[39m\x1b[0m |";
-                        break;
-                    default:
-                        str += " X |";
-                        break;
-                }
+                oss << " " << getCellString(board->cells[i*CELL_NUM+j]) << " |";
             }
         }
-        str += "\n\r";
+        oss << "\n\r";
     }
 
-    str += "+";
+    oss << "+";
     for (int j = 0; j < CELL_NUM; j++) {
-        str += "---+";
+        oss << "---+";
     }
 
-    cout << str << "\n\r";
+    cout << oss.str() << "\n\r";
 
 }
 
