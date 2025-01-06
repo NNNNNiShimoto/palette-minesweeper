@@ -111,6 +111,7 @@ string getNumberString(Cell cell) {
     }
 }
 
+//return "P"(flag) or "."(not open) or "2"(mine num) or "X"(opened mine)
 string getCellString(Cell cell) {
     if (cell.isFlag) {        
         switch(cell.flagColor) {
@@ -141,6 +142,31 @@ string getCellString(Cell cell) {
     }
 }
 
+string getHelpString(bool isShorten) {
+    ostringstream oss;
+    if (isShorten) oss << "[H] Open Help menu.\n\r";
+    else {
+        oss << "---KEY CONTROLS---\n\r";
+        oss << "[W/S/A/D] UP/DOWN/LEFT/RIGHT\n\r";
+        oss << "[I] Place/Remove a " << redText("RED")     << "flag.\n\r";
+        oss << "[O] Place/Remove a " << greenText("GREEN") << "flag.\n\r";
+        oss << "[P] Place/Remove a " << blueText("BLUE")   << "flag.\n\r";
+        oss << "[Space] Open a tile.\n\r";
+        oss << "[C] Quit the game.\n\r";
+        oss << "[H] Close Help menu.\n\r";
+        oss << "---COLOR HELP---\n\r";
+        oss << redText("RED") << "   + " << blueText("BLUE") 
+            << "  -> " << magentaText("MAGENTA") << "\n\r";
+        oss << blueText("BLUE") << "  + " << greenText("GREEN") 
+            << " -> " << cyanText("CYAN") << "\n\r";
+        oss << greenText("GREEN") << " + " << redText("RED") 
+            << "   -> " << yellowText("YELLOW") << "\n\r";
+        oss << redText("RED") << " + " << blueText("BLUE") 
+            << " + " << greenText("GREEN") << " -> " << whiteText("WHITE") << "\n\r";
+    }
+    return oss.str();
+}
+
 void printGameView(shared_ptr<Board> board) {
     ostringstream oss;
 
@@ -166,12 +192,14 @@ void printGameView(shared_ptr<Board> board) {
         oss << "\n\r";
     }
 
-    oss << "+";
     for (int j = 0; j < CELL_NUM; j++) {
-        oss << "---+";
+        oss << "+---";
     }
+    oss << "+\n\r";
 
-    cout << oss.str() << "\n\r";
+    oss << getHelpString(true);
+
+    cout << oss.str();
 
 }
 
