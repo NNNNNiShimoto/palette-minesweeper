@@ -8,8 +8,8 @@
 
 using namespace std;
 
-#define CELL_NUM 7
-#define MINE_NUM 2
+#define CELL_NUM 10
+#define MINE_NUM 5
 
 enum class Color {
     NONE    = 0b000,
@@ -94,7 +94,7 @@ void printGameView(shared_ptr<Board> board) {
     str += "\x1b[31mRED\x1b[39m: "  +to_string(board->redMineNum)  +", "
         +  "\x1b[32mGREEN\x1b[39m: "+to_string(board->greenMineNum)+", "
         +  "\x1b[34mBLUE\x1b[39m: " +to_string(board->blueMineNum) +", "
-        +  "REST: " +to_string(board->restCellNum) +"\n\r";
+        +  "REMAINING MINES: " +to_string(board->restCellNum) +"\n\r";
 
 
     //print board
