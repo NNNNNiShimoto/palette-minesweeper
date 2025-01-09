@@ -379,20 +379,30 @@ void openCellRecursive(shared_ptr<Board> board, int x, int y){
 
 //open cells using openCellRecursive(), 
 //ret 0:notmine, 1:mine
-int openCell(shared_ptr<Board> board){
-    if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlag
-      &&!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened) {
-        if (board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
+int openCell(shared_ptr<Board> board, int x, int y){
+    if (isOutOfBounds(x, y)) {
+        cerr << "ERROR: invalid index in openCell()" << endl;
+        exit(1);  
+    }
+
+    //cannot open the flag cell or already opened cell
+    if (!board->cells[x*CELL_NUM+y].isFlag
+      &&!board->cells[x*CELL_NUM+y].isOpened) {
+
+        //if mine cell opened
+        if (board->cells[x*CELL_NUM+y].mineColor!=Color::NONE) {
             return 1;
         }
 
-        board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isOpened = true;
+        board->cells[x*CELL_NUM+y].isOpened = true;
         board->remainCellNum--;
+
         //if opened cell was blanc, open recursively
-        if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineNumber) {
-            openCellRecursive(board, board->cursor->x, board->cursor->y);
+        if (!board->cells[x*CELL_NUM+y].mineNumber) {
+            openCellRecursive(board, x, y);
         }
     }
+    
     return 0;
 }
 
@@ -463,10 +473,10 @@ int main(void) {
                 board->cursor->y = (board->cursor->y+1)%CELL_NUM;
                 break;
             case ' ':
-                if (openCell(board)) {
+                if (openCell(board, board->cursor->x, board->cursor->y)) {
                     if (isFirst) {
                         setCells(board, board->cursor->x, board->cursor->y);
-                        openCell(board);
+                        openCell(board, board->cursor->x, board->cursor->y);
                         isFirst = false;
                         break;
                     } else {
