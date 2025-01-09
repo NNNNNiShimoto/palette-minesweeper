@@ -402,7 +402,7 @@ int openCell(shared_ptr<Board> board, int x, int y){
             openCellRecursive(board, x, y);
         }
     }
-    
+
     return 0;
 }
 
@@ -473,23 +473,17 @@ int main(void) {
                 board->cursor->y = (board->cursor->y+1)%CELL_NUM;
                 break;
             case ' ':
-                if (openCell(board, board->cursor->x, board->cursor->y)) {
-                    if (isFirst) {
-                        setCells(board, board->cursor->x, board->cursor->y);
-                        openCell(board, board->cursor->x, board->cursor->y);
-                        isFirst = false;
-                        break;
-                    } else {
-                        gameOver(board);
-                        isLoop = false;
-                        break;
-                    }
+                if (isFirst) {
+                    setCells(board, board->cursor->x, board->cursor->y);
+                    isFirst = false;
                 }
-                isFirst = false;
-                if (getIsGameclear(board)) {
+                if (openCell(board, board->cursor->x, board->cursor->y)) {
+                    //if open mine cell
+                    gameOver(board);
+                    isLoop = false;
+                } else if (getIsGameclear(board)) {
                     gameClear(board);
                     isLoop = false;
-                    break;
                 }
                 break;
             case 'i':
