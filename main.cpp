@@ -47,7 +47,6 @@ struct Cell {
 };
 
 struct Board{
-    unique_ptr<Cursor> cursor;
     unique_ptr<Cell[]> cells;
     unique_ptr<vector<int>> mineIdxList;
     int redMineNum;
@@ -290,13 +289,8 @@ void setCells(shared_ptr<Board> board, int x, int y) {
 }
 
 shared_ptr<Board> initBoard() {
-    unique_ptr<Cursor> cursor_ptr = make_unique<Cursor>();
-    cursor_ptr->x = 0;
-    cursor_ptr->y = 0;
-
     shared_ptr<Board> board_ptr = make_shared<Board>();
     setCells(board_ptr, 0, 0);
-    board_ptr->cursor = std::move(cursor_ptr);
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
@@ -419,7 +413,7 @@ bool getIsGameclear(shared_ptr<Board> board) {
     return isClear && board->remainCellNum<=0;
 }
 
-void gameOver(shared_ptr<Board> board) {
+void gameOver(shared_ptr<Board> board, Cursor cursor) {
     for(int idx: (*board->mineIdxList)) {
         if (board->cells[idx].isFlag) {
             board->cells[idx].flagColor = board->cells[idx].mineColor;
@@ -428,16 +422,16 @@ void gameOver(shared_ptr<Board> board) {
         }
     }
     system("clear");
-    printGameView(board, *board->cursor, false, false);
+    printGameView(board, cursor, false, false);
     cout << "GAMEOVER!\n\r";
 }
 
-void gameClear(shared_ptr<Board> board) {
+void gameClear(shared_ptr<Board> board, Cursor cursor) {
     for (int i=0; i<CELL_NUM*CELL_NUM; i++) {
         board->cells[i].isOpened = true;
     }
     system("clear");
-    printGameView(board, *board->cursor, false, false);
+    printGameView(board, cursor, false, false);
     cout << "CONGRATULATIONS!\n\r";
 }
 
@@ -452,7 +446,7 @@ int main(void) {
 
     while(isLoop) {
         system("clear");
-        printGameView(board, *board->cursor, isHelp, false);
+        printGameView(board, cursor, isHelp, false);
         if (isCancel) cout << "Do you want to cancel this game? (y/n)\n\r";
         key = getchar();
         if (isHelp) isHelp = !isHelp;
@@ -467,51 +461,51 @@ int main(void) {
         } 
         switch(key){
             case 'w':
-                board->cursor->x = (board->cursor->x-1+CELL_NUM)%CELL_NUM;
+                cursor.x = (cursor.x-1+CELL_NUM)%CELL_NUM;
                 break;
             case 's':
-                board->cursor->x = (board->cursor->x+1)%CELL_NUM;
+                cursor.x = (cursor.x+1)%CELL_NUM;
                 break;
             case 'a':
-                board->cursor->y = (board->cursor->y-1+CELL_NUM)%CELL_NUM;
+                cursor.y = (cursor.y-1+CELL_NUM)%CELL_NUM;
                 break;
             case 'd':
-                board->cursor->y = (board->cursor->y+1)%CELL_NUM;
+                cursor.y = (cursor.y+1)%CELL_NUM;
                 break;
             case ' ':
                 if (isFirst) {
-                    setCells(board, board->cursor->x, board->cursor->y);
+                    setCells(board, cursor.x, cursor.y);
                     isFirst = false;
                 }
-                if (openCell(board, board->cursor->x, board->cursor->y)) {
+                if (openCell(board, cursor.x, cursor.y)) {
                     //if open mine cell
-                    gameOver(board);
+                    gameOver(board, cursor);
                     isLoop = false;
                 } else if (getIsGameclear(board)) {
-                    gameClear(board);
+                    gameClear(board, cursor);
                     isLoop = false;
                 }
                 break;
             case 'i':
-                setFlag(board, board->cursor->x, board->cursor->y, Color::RED);
+                setFlag(board, cursor.x, cursor.y, Color::RED);
                 if (getIsGameclear(board)) {
-                    gameClear(board);
+                    gameClear(board, cursor);
                     isLoop = false;
                     break;
                 }
                 break;
             case 'o':
-                setFlag(board, board->cursor->x, board->cursor->y, Color::GREEN);
+                setFlag(board, cursor.x, cursor.y, Color::GREEN);
                 if (getIsGameclear(board)) {
-                    gameClear(board);
+                    gameClear(board, cursor);
                     isLoop = false;
                     break;
                 }
                 break;
             case 'p':
-                setFlag(board, board->cursor->x, board->cursor->y, Color::BLUE);
+                setFlag(board, cursor.x, cursor.y, Color::BLUE);
                 if (getIsGameclear(board)) {
-                    gameClear(board);
+                    gameClear(board, cursor);
                     isLoop = false;
                     break;
                 }
