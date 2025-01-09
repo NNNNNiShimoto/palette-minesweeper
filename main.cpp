@@ -32,11 +32,6 @@ inline Color operator|(Color a, Color b) {
     return static_cast<Color>(static_cast<T>(a) | static_cast<T>(b));
 }
 
-inline Color& operator|=(Color& a, Color b) {
-    a = a | b;
-    return a;
-}
-
 struct Cursor {
     int x;
     int y;
@@ -79,6 +74,10 @@ void enableRawMode() {
     terminal_config.c_cc[VMIN] = 1;
     terminal_config.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminal_config);
+}
+
+bool isOutOfBounds(int x, int y) {
+    return x < 0 | x >= CELL_NUM | y < 0 | y >= CELL_NUM;
 }
 
 string getInfoString(shared_ptr<Board> board) {
@@ -206,9 +205,13 @@ void printGameView(shared_ptr<Board> board, bool isHelp) {
         oss << "+---";
     }
     oss << "+\n\r";
-    
+
     //if gameover, don't show this
     oss << "[H] Open Help menu.\n\r";
+
+    for (int idx: *board->mineIdxList) {
+        oss << idx << ", ";
+    }
 
     cout << oss.str();
 }
@@ -228,6 +231,11 @@ vector<int> generateMineIdxList(int x, int y) {
 }
 
 void setCells(shared_ptr<Board> board, int x, int y) {
+    if (isOutOfBounds(x, y)) {
+        cout << "ERROR: invalid index in setCells()" << endl;
+        exit(1);
+    }
+    
     unique_ptr<Cell[]> cells = make_unique<Cell[]>(CELL_NUM*CELL_NUM);
     
     //all cells initialize
@@ -237,75 +245,44 @@ void setCells(shared_ptr<Board> board, int x, int y) {
         cells[i].isFlag = false;
     }
 
-    //mine set
-    vector<int> mineIdxList = generateMineIdxList(x ,y);
+    vector<int> mineIdxList = generateMineIdxList(x, y);
     
+    //for each of three colors, set MINE_NUM mines  
     int color_cnt=0;
     for (Color color: {Color::RED, Color::GREEN, Color::BLUE}) {
-        for (int i = 0+color_cnt*MINE_NUM; i < MINE_NUM*(color_cnt+1); i++) {
-            cells[mineIdxList[i]].mineColor = color;
+        for (int i = 0; i < MINE_NUM; i++) {
+            cells[mineIdxList[i+color_cnt*MINE_NUM]].mineColor = color;
         }
         color_cnt++;
     }
 
     board->mineIdxList = make_unique<vector<int>>(std::move(mineIdxList));
 
-    //number set
+    //if cell is not mine, set number and number's color
     for(int i=0; i<CELL_NUM*CELL_NUM; i++) {
         if (cells[i].mineColor == Color::NONE) {
-            int cnt = 0;
+            int cnt = 0, x = i/CELL_NUM, y = i%CELL_NUM;
             Color color = Color::NONE;
-            if (i%CELL_NUM!=0) {
-                //is left cell exist?
-                if (cells[i-1].mineColor!=Color::NONE) {
-                    cnt++;
-                    color |= cells[i-1].mineColor;
-                }
-                //is top-left cell exist?
-                if (i/CELL_NUM!=0 && cells[i-CELL_NUM-1].mineColor!=Color::NONE) {
-                    cnt++;
-                    color |= cells[i-CELL_NUM-1].mineColor;
-                }
-                //is bottom-left cell exist?
-                if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM-1].mineColor!=Color::NONE) {
-                    cnt++;
-                    color |= cells[i+CELL_NUM-1].mineColor;
+
+            //loop for around 8 cells
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0) continue;
+                    if (!isOutOfBounds(x+dx, y+dy) 
+                    && cells[(x+dx)*CELL_NUM+(y+dy)].mineColor != Color::NONE) {
+                        cnt++;
+                        color = color | cells[(x+dx)*CELL_NUM+(y+dy)].mineColor;
+                    }
                 }
             }
-            if (i%CELL_NUM!=CELL_NUM-1) {
-                //is right cell exist?
-                if (cells[i+1].mineColor!=Color::NONE) {
-                    cnt++;
-                    color |= cells[i+1].mineColor;
-                }
-                //is top-right cell exist?
-                if (i/CELL_NUM!=0 && cells[i-CELL_NUM+1].mineColor!=Color::NONE)  {
-                    cnt++;
-                    color |= cells[i-CELL_NUM+1].mineColor;
-                }
-                //is bottom-right cell exist?
-                if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM+1].mineColor!=Color::NONE)  {
-                    cnt++;
-                    color |= cells[i+CELL_NUM+1].mineColor;
-                }
-            }
-            //is top cell exist?
-            if (i/CELL_NUM!=0 && cells[i-CELL_NUM].mineColor!=Color::NONE) {
-                cnt++;
-                color |= cells[i-CELL_NUM].mineColor;
-            }
-            //is bottom cell exist?
-            if (i/CELL_NUM!=CELL_NUM-1 && cells[i+CELL_NUM].mineColor!=Color::NONE) {
-                cnt++;
-                color |= cells[i+CELL_NUM].mineColor;
-            }
+
             cells[i].mineNumber = cnt;
             cells[i].mineNumberColor = color;
         }
     }
+
     board->cells = std::move(cells);
-    board->remainCellNum = CELL_NUM*CELL_NUM-MINE_NUM*3;
-    //return cells;
+
 }
 
 shared_ptr<Board> initBoard() {
@@ -319,6 +296,7 @@ shared_ptr<Board> initBoard() {
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
+    board_ptr->remainCellNum = CELL_NUM*CELL_NUM-MINE_NUM*3;
 
     return board_ptr;
 }
@@ -532,9 +510,7 @@ int main(void) {
             case ' ':
                 if (openCell(board)) {
                     if (isFirst) {
-                        while(board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
-                            setCells(board, board->cursor->x, board->cursor->y);
-                        }
+                        setCells(board, board->cursor->x, board->cursor->y);
                         openCell(board);
                         isFirst = false;
                         break;
