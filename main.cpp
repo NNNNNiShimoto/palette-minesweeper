@@ -233,8 +233,8 @@ vector<int> generateMineIdxList(int x, int y) {
     return vector<int> (allIdxList.begin(), allIdxList.begin()+mineNum);
 }
 
-void setCells(shared_ptr<Board> board, int x, int y) {
-    if (isOutOfBounds(x, y)) {
+void setCells(shared_ptr<Board> board, Cursor cursor) {
+    if (isOutOfBounds(cursor.x, cursor.y)) {
         cerr << "ERROR: invalid index in setCells()" << endl;
         exit(1);
     }
@@ -248,7 +248,7 @@ void setCells(shared_ptr<Board> board, int x, int y) {
         cells[i].isFlag = false;
     }
 
-    vector<int> mineIdxList = generateMineIdxList(x, y);
+    vector<int> mineIdxList = generateMineIdxList(cursor.x, cursor.y);
     
     //for each of three colors, set MINE_NUM mines  
     int color_cnt=0;
@@ -289,8 +289,13 @@ void setCells(shared_ptr<Board> board, int x, int y) {
 }
 
 shared_ptr<Board> initBoard() {
+    Cursor dummy = {0, 0};
     shared_ptr<Board> board_ptr = make_shared<Board>();
-    setCells(board_ptr, 0, 0);
+
+    //set dummy cursor 
+    //b/c need to print GameView before first open
+    setCells(board_ptr, dummy);
+    
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
@@ -377,27 +382,27 @@ void openCellRecursive(shared_ptr<Board> board, int x, int y){
 
 //open cells using openCellRecursive(), 
 //ret 0:notmine, 1:mine
-int openCell(shared_ptr<Board> board, int x, int y){
-    if (isOutOfBounds(x, y)) {
+int openCell(shared_ptr<Board> board, Cursor cursor){
+    if (isOutOfBounds(cursor.x, cursor.y)) {
         cerr << "ERROR: invalid index in openCell()" << endl;
         exit(1);  
     }
 
     //cannot open the flag cell or already opened cell
-    if (!board->cells[x*CELL_NUM+y].isFlag
-      &&!board->cells[x*CELL_NUM+y].isOpened) {
+    if (!board->cells[cursor.x*CELL_NUM+cursor.y].isFlag
+      &&!board->cells[cursor.x*CELL_NUM+cursor.y].isOpened) {
 
         //if mine cell opened
-        if (board->cells[x*CELL_NUM+y].mineColor!=Color::NONE) {
+        if (board->cells[cursor.x*CELL_NUM+cursor.y].mineColor!=Color::NONE) {
             return 1;
         }
 
-        board->cells[x*CELL_NUM+y].isOpened = true;
+        board->cells[cursor.x*CELL_NUM+cursor.y].isOpened = true;
         board->remainCellNum--;
 
         //if opened cell was blanc, open recursively
-        if (!board->cells[x*CELL_NUM+y].mineNumber) {
-            openCellRecursive(board, x, y);
+        if (!board->cells[cursor.x*CELL_NUM+cursor.y].mineNumber) {
+            openCellRecursive(board, cursor.x, cursor.y);
         }
     }
 
@@ -478,10 +483,10 @@ int main(void) {
                 break;
             case ' ':
                 if (isFirst) {
-                    setCells(board, cursor.x, cursor.y);
+                    setCells(board, cursor);
                     isFirst = false;
                 }
-                if (openCell(board, cursor.x, cursor.y)) {
+                if (openCell(board, cursor)) {
                     //if open mine cell
                     gameOver(board, cursor);
                     isLoop = false;
