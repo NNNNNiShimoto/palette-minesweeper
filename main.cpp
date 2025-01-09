@@ -142,36 +142,46 @@ string getCellString(Cell cell) {
     }
 }
 
-string getHelpString(bool isShorten) {
+string getHelpString() {
     ostringstream oss;
-    if (isShorten) oss << "[H] Open Help menu.\n\r";
-    else {
-        oss << "---KEY CONTROLS---\n\r";
-        oss << "[W/S/A/D] UP/DOWN/LEFT/RIGHT\n\r";
-        oss << "[I] Place/Remove a " << redText("RED")     << "flag.\n\r";
-        oss << "[O] Place/Remove a " << greenText("GREEN") << "flag.\n\r";
-        oss << "[P] Place/Remove a " << blueText("BLUE")   << "flag.\n\r";
-        oss << "[Space] Open a tile.\n\r";
-        oss << "[C] Quit the game.\n\r";
-        oss << "[H] Close Help menu.\n\r";
-        oss << "---COLOR HELP---\n\r";
-        oss << redText("RED") << "   + " << blueText("BLUE") 
-            << "  -> " << magentaText("MAGENTA") << "\n\r";
-        oss << blueText("BLUE") << "  + " << greenText("GREEN") 
-            << " -> " << cyanText("CYAN") << "\n\r";
-        oss << greenText("GREEN") << " + " << redText("RED") 
-            << "   -> " << yellowText("YELLOW") << "\n\r";
-        oss << redText("RED") << " + " << blueText("BLUE") 
-            << " + " << greenText("GREEN") << " -> " << whiteText("WHITE") << "\n\r";
-    }
+
+    oss << "---KEY CONTROLS---\n\r\n\r";
+
+    oss << "[W/S/A/D] UP/DOWN/LEFT/RIGHT\n\r";
+    oss << "[I] Place/Remove a " << redText("RED")     << " flag.\n\r";
+    oss << "[O] Place/Remove a " << greenText("GREEN") << " flag.\n\r";
+    oss << "[P] Place/Remove a " << blueText("BLUE")   << " flag.\n\r";
+    oss << "[Space] Open a tile.\n\r";
+    oss << "[C] Quit the game.\n\r\n\r";
+
+    oss << "---COLOR HELP---\n\r\n\r";
+
+    oss << redText("RED") << "   + " << blueText("BLUE") 
+        << "  -> " << magentaText("MAGENTA") << "\n\r";
+    oss << blueText("BLUE") << "  + " << greenText("GREEN") 
+        << " -> " << cyanText("CYAN") << "\n\r";
+    oss << greenText("GREEN") << " + " << redText("RED") 
+        << "   -> " << yellowText("YELLOW") << "\n\r";
+    oss << redText("RED") << " + " << blueText("BLUE") 
+        << " + " << greenText("GREEN") << " -> " << whiteText("WHITE") << "\n\r\n\r";
+
+    oss << "Press any key to return to the game.";
+
     return oss.str();
 }
 
-void printGameView(shared_ptr<Board> board) {
+void printGameView(shared_ptr<Board> board, bool isHelp) {
     ostringstream oss;
 
     //print information
     oss << getInfoString(board);
+
+    //print Help menu
+    if (isHelp) {
+        oss << getHelpString();
+        cout << oss.str();
+        return;
+    }
 
     //print board
     for (int i = 0; i < CELL_NUM; i++) {
@@ -196,14 +206,28 @@ void printGameView(shared_ptr<Board> board) {
         oss << "+---";
     }
     oss << "+\n\r";
-
-    oss << getHelpString(true);
+    
+    //if gameover, don't show this
+    oss << "[H] Open Help menu.\n\r";
 
     cout << oss.str();
-
 }
 
-void setCells(shared_ptr<Board> board) {
+vector<int> generateMineIdxList(int x, int y) {
+    random_device seed;
+    mt19937 gen(seed());
+    vector<int> allIdxList;
+    for (int i = 0; i < CELL_NUM*CELL_NUM; i++) {
+        if (i != x*CELL_NUM+y) allIdxList.push_back(i);
+    }
+    shuffle(allIdxList.begin(), allIdxList.end(), gen);
+
+    int mineNum = min(MINE_NUM*3, CELL_NUM*CELL_NUM);
+
+    return vector<int> (allIdxList.begin(), allIdxList.begin()+mineNum);
+}
+
+void setCells(shared_ptr<Board> board, int x, int y) {
     unique_ptr<Cell[]> cells = make_unique<Cell[]>(CELL_NUM*CELL_NUM);
     
     //all cells initialize
@@ -214,14 +238,7 @@ void setCells(shared_ptr<Board> board) {
     }
 
     //mine set
-    random_device seed;
-    mt19937 gen(seed());
-    vector<int> allIdxList;
-    for (int i = 0; i < CELL_NUM*CELL_NUM; i++) {
-        allIdxList.push_back(i);
-    }
-    shuffle(allIdxList.begin(), allIdxList.end(), gen);
-    vector<int> mineIdxList(allIdxList.begin(), allIdxList.begin()+MINE_NUM*3);
+    vector<int> mineIdxList = generateMineIdxList(x ,y);
     
     int color_cnt=0;
     for (Color color: {Color::RED, Color::GREEN, Color::BLUE}) {
@@ -297,7 +314,7 @@ shared_ptr<Board> initBoard() {
     cursor_ptr->y = 0;
 
     shared_ptr<Board> board_ptr = make_shared<Board>();
-    setCells(board_ptr);
+    setCells(board_ptr, 0, 0);
     board_ptr->cursor = std::move(cursor_ptr);
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
@@ -464,7 +481,7 @@ void gameOver(shared_ptr<Board> board) {
         }
     }
     system("clear");
-    printGameView(board);
+    printGameView(board, false);
     cout << "GAMEOVER!\n\r";
 }
 
@@ -473,22 +490,23 @@ void gameClear(shared_ptr<Board> board) {
         board->cells[i].isOpened = true;
     }
     system("clear");
-    printGameView(board);
+    printGameView(board, false);
     cout << "CONGRATULATIONS!\n\r";
 }
 
 int main(void) {
     char key;
-    bool isLoop = true, isFirst = true, isCancel = false;
+    bool isLoop = true, isFirst = true, isCancel = false, isHelp = false;
     shared_ptr<Board> board = initBoard();
 
     enableRawMode();
 
     while(isLoop) {
         system("clear");
-        printGameView(board);
+        printGameView(board, isHelp);
         if (isCancel) cout << "Do you want to cancel this game? (y/n)\n\r";
         key = getchar();
+        if (isHelp) isHelp = !isHelp;
         if (key=='c') {
             isCancel = true;
             continue;
@@ -515,7 +533,7 @@ int main(void) {
                 if (openCell(board)) {
                     if (isFirst) {
                         while(board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineColor!=Color::NONE) {
-                            setCells(board);
+                            setCells(board, board->cursor->x, board->cursor->y);
                         }
                         openCell(board);
                         isFirst = false;
@@ -556,7 +574,10 @@ int main(void) {
                     isLoop = false;
                     break;
                 }
-                break;  
+                break; 
+            case 'h':
+                isHelp = !isHelp;
+                break;
         }
     }
 
