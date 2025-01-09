@@ -446,19 +446,23 @@ int main(void) {
 
     while(isLoop) {
         system("clear");
-        printGameView(board, cursor, isHelp, false);
-        if (isCancel) cout << "Do you want to cancel this game? (y/n)\n\r";
+        printGameView(board, cursor, isHelp, isCancel);
+        if (isCancel) cout << "Do you want to cancel the game? (y/n)\n\r";
         key = getchar();
-        if (isHelp) isHelp = !isHelp;
-        if (key=='c') {
-            isCancel = true;
+        
+        //for help
+        if (key=='h' || isHelp) {
+            isHelp = !isHelp;
             continue;
         }
+
+        //for quit
         if (isCancel){
-            if (key=='y') break;
-            else if (key=='n') isCancel = false;
-            else continue;
-        } 
+            if (key=='y') exit(0);
+            if (key=='n') isCancel = false;
+            continue;
+        }
+
         switch(key){
             case 'w':
                 cursor.x = (cursor.x-1+CELL_NUM)%CELL_NUM;
@@ -509,9 +513,9 @@ int main(void) {
                     isLoop = false;
                     break;
                 }
-                break; 
-            case 'h':
-                isHelp = !isHelp;
+                break;
+            case 'c':
+                isCancel = true;
                 break;
         }
     }
