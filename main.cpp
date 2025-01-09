@@ -169,7 +169,12 @@ string getHelpString() {
     return oss.str();
 }
 
-void printGameView(shared_ptr<Board> board, bool isHelp) {
+void printGameView(shared_ptr<Board> board, Cursor cursor, bool isHelp, bool isGameover) {
+    if (isOutOfBounds(cursor.x, cursor.y)) {
+        cerr << "ERROR: invalid index in printGameView()" << endl;
+        exit(1);
+    }
+
     ostringstream oss;
 
     //print information
@@ -192,7 +197,7 @@ void printGameView(shared_ptr<Board> board, bool isHelp) {
         oss << "\n\r|";
 
         for (int j = 0; j < CELL_NUM; j++) {
-            if (board->cursor->x == i && board->cursor->y == j) {
+            if (i == cursor.x && j == cursor.y) {
                 oss << " " << underlineText(getCellString(board->cells[i*CELL_NUM+j])) << " |";
             } else {
                 oss << " " << getCellString(board->cells[i*CELL_NUM+j]) << " |";
@@ -206,12 +211,11 @@ void printGameView(shared_ptr<Board> board, bool isHelp) {
     }
     oss << "+\n\r";
 
-    //if gameover, don't show this
-    oss << "[H] Open Help menu.\n\r";
+    if (!isGameover) oss << "[H] Open Help menu.\n\r";
 
-    for (int idx: *board->mineIdxList) {
-        oss << idx << ", ";
-    }
+    // for (int idx: *board->mineIdxList) {
+    //     oss << idx << ", ";
+    // }
 
     cout << oss.str();
 }
@@ -424,7 +428,7 @@ void gameOver(shared_ptr<Board> board) {
         }
     }
     system("clear");
-    printGameView(board, false);
+    printGameView(board, *board->cursor, false, false);
     cout << "GAMEOVER!\n\r";
 }
 
@@ -433,20 +437,22 @@ void gameClear(shared_ptr<Board> board) {
         board->cells[i].isOpened = true;
     }
     system("clear");
-    printGameView(board, false);
+    printGameView(board, *board->cursor, false, false);
     cout << "CONGRATULATIONS!\n\r";
 }
 
 int main(void) {
     char key;
     bool isLoop = true, isFirst = true, isCancel = false, isHelp = false;
+
+    Cursor cursor = {0, 0};
     shared_ptr<Board> board = initBoard();
 
     enableRawMode();
 
     while(isLoop) {
         system("clear");
-        printGameView(board, isHelp);
+        printGameView(board, *board->cursor, isHelp, false);
         if (isCancel) cout << "Do you want to cancel this game? (y/n)\n\r";
         key = getchar();
         if (isHelp) isHelp = !isHelp;
