@@ -209,9 +209,9 @@ void printGameView(shared_ptr<Board> board, bool isHelp) {
     //if gameover, don't show this
     oss << "[H] Open Help menu.\n\r";
 
-    // for (int idx: *board->mineIdxList) {
-    //     oss << idx << ", ";
-    // }
+    for (int idx: *board->mineIdxList) {
+        oss << idx << ", ";
+    }
 
     cout << oss.str();
 }
@@ -361,76 +361,23 @@ void setFlag(shared_ptr<Board> board, int x, int y, Color color) {
     }
 }
 
-void openCellRec(shared_ptr<Board> board, int x, int y){
-    if (y!=0) {
-        if(!board->cells[x*CELL_NUM+y-1].isFlag //left
-        && !board->cells[x*CELL_NUM+y-1].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[x*CELL_NUM+y-1].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[x*CELL_NUM+y-1].mineNumber) openCellRec(board, x, y-1); 
+void openCellRecursive(shared_ptr<Board> board, int x, int y){
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            if ((dx == 0 && dy == 0) || isOutOfBounds(x+dx, y+dy)) continue;
+            
+            if(!board->cells[(x+dx)*CELL_NUM+y+dy].isFlag
+            && !board->cells[(x+dx)*CELL_NUM+y+dy].isOpened 
+            &&  board->cells[(x+dx)*CELL_NUM+y+dy].mineColor == Color::NONE) {
+                board->cells[(x+dx)*CELL_NUM+y+dy].isOpened = true;
+                board->remainCellNum--;
+                if (board->cells[(x+dx)*CELL_NUM+y+dy].mineNumber == 0) openCellRecursive(board, x+dx, y+dy); 
+            }
         }
-        if (x!=0  //upper-left
-        && !board->cells[(x-1)*CELL_NUM+y-1].isFlag 
-        && !board->cells[(x-1)*CELL_NUM+y-1].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[(x-1)*CELL_NUM+y-1].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[(x-1)*CELL_NUM+y-1].mineNumber) openCellRec(board, x-1, y-1);
-        }
-        if (x!=CELL_NUM-1  //bottom-left
-        && !board->cells[(x+1)*CELL_NUM+y-1].isFlag 
-        && !board->cells[(x+1)*CELL_NUM+y-1].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[(x+1)*CELL_NUM+y-1].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[(x+1)*CELL_NUM+y-1].mineNumber) openCellRec(board, x+1, y-1);
-        }
-    }
-    if (y!=CELL_NUM-1) {
-        if(!board->cells[x*CELL_NUM+y+1].isFlag //right
-        && !board->cells[x*CELL_NUM+y+1].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[x*CELL_NUM+y+1].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[x*CELL_NUM+y+1].mineNumber) openCellRec(board, x, y+1); 
-        }
-        if (x!=0  //upper-right
-        && !board->cells[(x-1)*CELL_NUM+y+1].isFlag 
-        && !board->cells[(x-1)*CELL_NUM+y+1].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[(x-1)*CELL_NUM+y+1].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[(x-1)*CELL_NUM+y+1].mineNumber) openCellRec(board, x-1, y+1);
-        }
-        if (x!=CELL_NUM-1  //bottom-right
-        && !board->cells[(x+1)*CELL_NUM+y+1].isFlag 
-        && !board->cells[(x+1)*CELL_NUM+y+1].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[(x+1)*CELL_NUM+y+1].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[(x+1)*CELL_NUM+y+1].mineNumber) openCellRec(board, x+1, y+1);
-        }
-    }
-    if (x!=0
-        && !board->cells[(x-1)*CELL_NUM+y].isFlag //top
-        && !board->cells[(x-1)*CELL_NUM+y].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[(x-1)*CELL_NUM+y].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[(x-1)*CELL_NUM+y].mineNumber) openCellRec(board, x-1, y); 
-    }
-    if (x!=CELL_NUM-1
-        && !board->cells[(x+1)*CELL_NUM+y].isFlag //bottom
-        && !board->cells[(x+1)*CELL_NUM+y].isOpened 
-        &&  board->cells[x*CELL_NUM+y-1].mineColor == Color::NONE) {
-            board->cells[(x+1)*CELL_NUM+y].isOpened = true;
-            board->remainCellNum--;
-            if (!board->cells[(x+1)*CELL_NUM+y].mineNumber) openCellRec(board, x+1, y); 
     }
 }
 
-//open cells using openCellRec, 
+//open cells using openCellRecursive(), 
 //ret 0:notmine, 1:mine
 int openCell(shared_ptr<Board> board){
     if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].isFlag
@@ -443,7 +390,7 @@ int openCell(shared_ptr<Board> board){
         board->remainCellNum--;
         //if opened cell was blanc, open recursively
         if (!board->cells[board->cursor->x*CELL_NUM+board->cursor->y].mineNumber) {
-            openCellRec(board, board->cursor->x, board->cursor->y);
+            openCellRecursive(board, board->cursor->x, board->cursor->y);
         }
     }
     return 0;
