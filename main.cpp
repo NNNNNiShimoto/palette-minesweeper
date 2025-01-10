@@ -295,7 +295,7 @@ shared_ptr<Board> initBoard() {
     //set dummy cursor 
     //b/c need to print GameView before first open
     setCells(board_ptr, dummy);
-    
+
     board_ptr->redMineNum = MINE_NUM;
     board_ptr->greenMineNum = MINE_NUM;
     board_ptr->blueMineNum = MINE_NUM;
@@ -336,29 +336,29 @@ void operateMineNum(shared_ptr<Board> board, Color color, bool isIncrease) {
     }
 }
 
-void setFlag(shared_ptr<Board> board, int x, int y, Color color) {
-    if (isOutOfBounds(x, y)) {
+void setFlag(shared_ptr<Board> board, Cursor cursor, Color color) {
+    if (isOutOfBounds(cursor.x, cursor.y)) {
         cerr << "ERROR: invalid index in setFlag()" << endl;
         exit(1);  
     }
 
-    if(board->cells[x*CELL_NUM+y].isFlag) {
+    if(board->cells[cursor.x*CELL_NUM+cursor.y].isFlag) {
         //if already flag exists, delete
-        if (color==board->cells[x*CELL_NUM+y].flagColor) {
-            board->cells[x*CELL_NUM+y].isFlag=false;
-            board->cells[x*CELL_NUM+y].flagColor=Color::NONE;
+        if (color==board->cells[cursor.x*CELL_NUM+cursor.y].flagColor) {
+            board->cells[cursor.x*CELL_NUM+cursor.y].isFlag=false;
+            board->cells[cursor.x*CELL_NUM+cursor.y].flagColor=Color::NONE;
             operateMineNum(board, color, true);
         } else {
         //if another color flag exists, replace
-            operateMineNum(board, board->cells[x*CELL_NUM+y].flagColor, true);
-            board->cells[x*CELL_NUM+y].flagColor=color;
+            operateMineNum(board, board->cells[cursor.x*CELL_NUM+cursor.y].flagColor, true);
+            board->cells[cursor.x*CELL_NUM+cursor.y].flagColor=color;
             operateMineNum(board, color, false);
         }
     } else {
         //if flag not exists, place a flag
-        if (!board->cells[x*CELL_NUM+y].isOpened) {
-            board->cells[x*CELL_NUM+y].isFlag=true;
-            board->cells[x*CELL_NUM+y].flagColor=color;
+        if (!board->cells[cursor.x*CELL_NUM+cursor.y].isOpened) {
+            board->cells[cursor.x*CELL_NUM+cursor.y].isFlag=true;
+            board->cells[cursor.x*CELL_NUM+cursor.y].flagColor=color;
             operateMineNum(board, color, false);
         }
     }
@@ -496,7 +496,7 @@ int main(void) {
                 }
                 break;
             case 'i':
-                setFlag(board, cursor.x, cursor.y, Color::RED);
+                setFlag(board, cursor, Color::RED);
                 if (getIsGameclear(board)) {
                     gameClear(board, cursor);
                     isLoop = false;
@@ -504,7 +504,7 @@ int main(void) {
                 }
                 break;
             case 'o':
-                setFlag(board, cursor.x, cursor.y, Color::GREEN);
+                setFlag(board, cursor, Color::GREEN);
                 if (getIsGameclear(board)) {
                     gameClear(board, cursor);
                     isLoop = false;
@@ -512,7 +512,7 @@ int main(void) {
                 }
                 break;
             case 'p':
-                setFlag(board, cursor.x, cursor.y, Color::BLUE);
+                setFlag(board, cursor, Color::BLUE);
                 if (getIsGameclear(board)) {
                     gameClear(board, cursor);
                     isLoop = false;
