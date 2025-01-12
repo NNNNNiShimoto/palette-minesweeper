@@ -1,6 +1,6 @@
 TARGET = a.out
 
-SRCS = main.cpp
+SRCS = main.cpp boardmanage.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 
