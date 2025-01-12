@@ -1,6 +1,8 @@
 #include <memory>
 #include <iostream>
+
 #include "board.h"
+#include "boardmanage.h"
 
 bool getIsGameclear(std::shared_ptr<Board> board) {
     bool isClear = true;
@@ -21,7 +23,7 @@ void gameOver(std::shared_ptr<Board> board, Cursor cursor) {
     }
     system("clear");
     printGameView(board, cursor, false, false);
-    cout << "GAMEOVER!\n\r";
+    std::cout << "GAMEOVER!\n\r";
 }
 
 void gameClear(std::shared_ptr<Board> board, Cursor cursor) {
