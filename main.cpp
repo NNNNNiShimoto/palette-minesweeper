@@ -12,9 +12,6 @@
 
 using namespace std;
 
-#define CELL_NUM 10
-#define MINE_NUM 5
-
 termios original;
 
 //recover terminal 

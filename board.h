@@ -1,5 +1,11 @@
+#ifndef BOARD_H
+#define BOARD_H
+
 #include <memory>
 #include <vector>
+
+#define CELL_NUM 10
+#define MINE_NUM 5
 
 enum class Color {
     NONE    = 0b000,
@@ -39,3 +45,5 @@ struct Board{
     int blueMineNum;
     int remainCellNum;
 };
+
+#endif
