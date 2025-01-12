@@ -1,6 +1,6 @@
 TARGET = a.out
 
-SRCS = main.cpp boardmanage.cpp gamelogic.cpp
+SRCS = src/main.cpp src/boardmanage.cpp src/gamelogic.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 
